@@ -2,9 +2,6 @@ package com.barofit.report.controller;
 
 import com.barofit.report.service.ReportService;
 import com.barofit.report.service.WorkoutSessionOwnershipClient;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
 import java.security.Principal;
 import java.util.List;
@@ -13,6 +10,9 @@ import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 
 @io.swagger.v3.oas.annotations.tags.Tag(
     name = "Report Service",
@@ -84,7 +84,7 @@ public class ReportController {
     JsonNode payload;
     try {
       payload = mapper.readTree(rawPayload);
-    } catch (JsonProcessingException ex) {
+    } catch (JacksonException ex) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid report JSON", ex);
     }
     ownership.requireOwned(sessionId, request.getHeader("Authorization"));

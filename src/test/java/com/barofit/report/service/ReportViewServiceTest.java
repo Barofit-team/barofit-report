@@ -4,7 +4,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -13,6 +12,7 @@ import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcTemplate;
+import tools.jackson.databind.ObjectMapper;
 
 class ReportViewServiceTest {
   private final ObjectMapper json = new ObjectMapper();
@@ -67,7 +67,7 @@ class ReportViewServiceTest {
     UUID a = UUID.randomUUID(), b = UUID.randomUUID();
     var exercise = json.readTree("{\"sets\":[{\"id\":\"" + a + "\"},{\"id\":\"" + b + "\"}]}");
     var done = json.readTree("{\"actualReps\":2}");
-    Map<String, com.fasterxml.jackson.databind.JsonNode> results =
+    Map<String, tools.jackson.databind.JsonNode> results =
         Map.of(a.toString(), done, b.toString(), done);
     var first =
         List.of(

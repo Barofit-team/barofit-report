@@ -1,10 +1,7 @@
 package com.barofit.report.service;
 
 import com.barofit.report.repository.ReportRepository;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Instant;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -13,6 +10,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 
 @Service
 public class ReportService {
@@ -157,7 +156,7 @@ public class ReportService {
           throw new ResponseStatusException(
               HttpStatus.CONFLICT, "Set ID reused with different payload");
         }
-      } catch (com.fasterxml.jackson.core.JsonProcessingException ex) {
+      } catch (tools.jackson.core.JacksonException ex) {
         throw new IllegalStateException("Stored JSON is invalid", ex);
       }
       UUID previous = (UUID) existing.get("routineSetId");
@@ -196,13 +195,8 @@ public class ReportService {
           payload.toString(),
           routineSetId);
 
-      Iterator<Map.Entry<String, JsonNode>> iterator = items.fields();
-
-      while (iterator.hasNext()) {
-        Map.Entry<String, JsonNode> entry = iterator.next();
-
-        String itemId = entry.getKey();
-        JsonNode item = entry.getValue();
+      for (String itemId : items.propertyNames()) {
+        JsonNode item = items.path(itemId);
 
         String basis = requiredText(item, "aggregationBasis");
         String unit = requiredText(item, "unit");

@@ -8,7 +8,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.barofit.report.service.ReportService;
 import com.barofit.report.service.WorkoutSessionOwnershipClient;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import java.security.Principal;
 import java.util.List;
 import java.util.Map;
@@ -16,10 +15,11 @@ import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.converter.StringHttpMessageConverter;
-import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
+import org.springframework.http.converter.json.JacksonJsonHttpMessageConverter;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.server.ResponseStatusException;
+import tools.jackson.databind.ObjectMapper;
 
 class ReportControllerHttpTest {
 
@@ -29,8 +29,7 @@ class ReportControllerHttpTest {
   private final MockMvc mvc =
       MockMvcBuilders.standaloneSetup(new ReportController(service, ownership, new ObjectMapper()))
           .setMessageConverters(
-              new StringHttpMessageConverter(),
-              new MappingJackson2HttpMessageConverter(new ObjectMapper()))
+              new StringHttpMessageConverter(), new JacksonJsonHttpMessageConverter())
           .build();
 
   @Test
@@ -119,7 +118,7 @@ class ReportControllerHttpTest {
             eq(userId),
             eq(sessionId),
             eq(setId),
-            any(com.fasterxml.jackson.databind.JsonNode.class),
+            any(tools.jackson.databind.JsonNode.class),
             isNull()))
         .thenReturn(
             Map.of(
@@ -141,7 +140,7 @@ class ReportControllerHttpTest {
             eq(userId),
             eq(sessionId),
             eq(setId),
-            any(com.fasterxml.jackson.databind.JsonNode.class),
+            any(tools.jackson.databind.JsonNode.class),
             isNull());
     verify(ownership).requireOwned(sessionId, "Bearer owner-token");
   }
@@ -194,7 +193,7 @@ class ReportControllerHttpTest {
             eq(userId),
             eq(sessionId),
             eq(setId),
-            any(com.fasterxml.jackson.databind.JsonNode.class),
+            any(tools.jackson.databind.JsonNode.class),
             isNull()))
         .thenThrow(
             new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unsupported Pose contract"));
@@ -229,7 +228,7 @@ class ReportControllerHttpTest {
             eq(userId),
             eq(sessionId),
             eq(setId),
-            any(com.fasterxml.jackson.databind.JsonNode.class),
+            any(tools.jackson.databind.JsonNode.class),
             isNull()))
         .thenThrow(
             new ResponseStatusException(
