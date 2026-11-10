@@ -12,19 +12,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.transaction.annotation.Transactional;
 
 @SpringBootTest(classes = ReportPostgresIntegrationTest.ReportTestApplication.class)
 @ActiveProfiles("test")
-@TestPropertySource(
-    properties = {
-      "spring.datasource.url=jdbc:postgresql://localhost:5432/barofit_report_dev",
-      "spring.datasource.username=postgres",
-      "spring.datasource.password=postgres",
-      "spring.jpa.hibernate.ddl-auto=validate",
-      "spring.flyway.enabled=true"
-    })
 @Transactional
 class ReportPostgresIntegrationTest extends com.barofit.report.ReportPostgresSupport {
 

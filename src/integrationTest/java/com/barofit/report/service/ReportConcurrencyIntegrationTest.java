@@ -16,19 +16,10 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.web.server.ResponseStatusException;
 
 @SpringBootTest(classes = ReportPostgresIntegrationTest.ReportTestApplication.class)
 @ActiveProfiles("test")
-@TestPropertySource(
-    properties = {
-      "spring.datasource.url=jdbc:postgresql://localhost:5432/barofit_report_dev",
-      "spring.datasource.username=postgres",
-      "spring.datasource.password=postgres",
-      "spring.jpa.hibernate.ddl-auto=validate",
-      "spring.flyway.enabled=true"
-    })
 class ReportConcurrencyIntegrationTest extends com.barofit.report.ReportPostgresSupport {
 
   @Autowired ReportService service;
