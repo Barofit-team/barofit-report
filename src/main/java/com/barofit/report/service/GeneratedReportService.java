@@ -1,14 +1,14 @@
 package com.barofit.report.service;
 
 import com.barofit.report.repository.ReportRepository.ScoreItem;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.*;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 
 /**
  * Immutable, deterministic report generated once from the finished workout and its uploaded AI
@@ -105,8 +105,7 @@ public class GeneratedReportService {
         reps += set.path("actualReps").asInt(0);
         duration += set.path("actualDurationSeconds").asInt(0);
         set.path("errorCounts")
-            .fields()
-            .forEachRemaining(e -> errors.merge(e.getKey(), e.getValue().asLong(), Long::sum));
+            .forEachEntry((key, value) -> errors.merge(key, value.asLong(), Long::sum));
         List<ScoreItem> setItems = itemsBySet.get(UUID.fromString(planned.path("id").asText()));
         if (setItems == null)
           throw new ResponseStatusException(
@@ -219,7 +218,7 @@ public class GeneratedReportService {
           sessionId,
           user,
           json.writeValueAsString(generated));
-    } catch (JsonProcessingException ex) {
+    } catch (JacksonException ex) {
       throw new IllegalStateException(ex);
     }
     Generated result = find(user, sessionId);
@@ -256,7 +255,7 @@ public class GeneratedReportService {
     if (rows.isEmpty()) return null;
     try {
       return json.readValue(rows.get(0), Generated.class);
-    } catch (JsonProcessingException ex) {
+    } catch (JacksonException ex) {
       throw new IllegalStateException("Stored report is invalid", ex);
     }
   }

@@ -1,15 +1,15 @@
 package com.barofit.report.service;
 
 import com.barofit.report.repository.ReportRepository.ScoreItem;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.*;
 import java.util.*;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 
 @Service
 public class ReportViewService {
@@ -405,7 +405,7 @@ public class ReportViewService {
                 mapper.readValue(
                     rs.getString("areas"),
                     mapper.getTypeFactory().constructCollectionType(List.class, String.class)));
-          } catch (JsonProcessingException e) {
+          } catch (JacksonException e) {
             throw new IllegalStateException(e);
           }
         },
@@ -442,7 +442,7 @@ public class ReportViewService {
       if (changed != 1)
         throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Workout not found");
       return input;
-    } catch (JsonProcessingException e) {
+    } catch (JacksonException e) {
       throw new IllegalStateException(e);
     }
   }

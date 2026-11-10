@@ -2,8 +2,6 @@ package com.barofit.report.service;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -17,6 +15,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.web.server.ResponseStatusException;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 
 @SpringBootTest(classes = ReportPostgresIntegrationTest.ReportTestApplication.class)
 @ActiveProfiles("test")
@@ -62,7 +62,7 @@ class ReportConcurrencyIntegrationTest extends com.barofit.report.ReportPostgres
     JsonNode node = mapper.readTree(json);
 
     if (!valid) {
-      ((com.fasterxml.jackson.databind.node.ObjectNode)
+      ((tools.jackson.databind.node.ObjectNode)
               node.path("summary").path("items").path("hip_alignment"))
           .put("evaluated", 99);
     }
