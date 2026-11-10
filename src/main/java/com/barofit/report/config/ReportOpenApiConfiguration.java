@@ -8,8 +8,16 @@ import org.springframework.context.annotation.Configuration;
 
 @Configuration
 public class ReportOpenApiConfiguration {
-    @Bean OpenAPI reportOpenApi() {
-        return new OpenAPI().components(new Components().addSecuritySchemes("bearerAuth",
-            new SecurityScheme().type(SecurityScheme.Type.HTTP).scheme("bearer").bearerFormat("JWT")));
-    }
+  @Bean
+  OpenAPI reportOpenApi() {
+    return new OpenAPI()
+        .components(
+            new Components()
+                .addSecuritySchemes(
+                    "bearerAuth",
+                    new SecurityScheme()
+                        .type(SecurityScheme.Type.HTTP)
+                        .scheme("bearer")
+                        .bearerFormat("JWT")));
+  }
 }

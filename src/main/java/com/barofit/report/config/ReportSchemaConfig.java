@@ -6,5 +6,8 @@ import org.springframework.context.annotation.Configuration;
 
 @Configuration(proxyBeanMethods = false)
 class ReportSchemaConfig {
-    @Bean ModuleSchema reportSchema() { return new ModuleSchema("report"); }
+  @Bean
+  ModuleSchema reportSchema() {
+    return new ModuleSchema("report");
+  }
 }
