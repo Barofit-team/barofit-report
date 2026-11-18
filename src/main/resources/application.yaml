@@ -4,13 +4,18 @@ spring:
   config:
     import: optional:file:.env[.properties]
   datasource:
-    url: ${REPORT_DB_URL:jdbc:postgresql://localhost:5432/barofit?currentSchema=report}
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/barofit}
     username: ${DB_USERNAME:postgres}
     password: ${DB_PASSWORD:postgres}
+    hikari:
+      schema: report
   jpa:
     open-in-view: false
     hibernate:
       ddl-auto: validate
+    properties:
+      hibernate:
+        default_schema: report
   flyway:
     enabled: false
 barofit:
