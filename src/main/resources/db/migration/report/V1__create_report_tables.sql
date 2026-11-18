@@ -29,15 +29,3 @@ CREATE TABLE posture_item_results (
     CHECK ((aggregation_basis = 'repetition' AND unit = 'repetitions')
         OR (aggregation_basis = 'time' AND unit = 'seconds'))
 );
-
--- 기존 Analytics 데이터는 보존하며 독립 Report 스키마로 복사한다.
-DO $$
-BEGIN
-    IF to_regclass('analytics.exercise_set_results') IS NOT NULL
-       AND to_regclass('analytics.posture_item_results') IS NOT NULL THEN
-        INSERT INTO report.exercise_set_results SELECT * FROM analytics.exercise_set_results
-            ON CONFLICT (set_id) DO NOTHING;
-        INSERT INTO report.posture_item_results SELECT * FROM analytics.posture_item_results
-            ON CONFLICT (set_id, item_id) DO NOTHING;
-    END IF;
-END $$;
