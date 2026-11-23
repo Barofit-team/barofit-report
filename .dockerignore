@@ -15,3 +15,7 @@ keys
 *.p12
 *.jks
 *.keystore
+# GitHub Packages migration: include only the built application JAR
+!build/
+!build/libs/
+!build/libs/app.jar

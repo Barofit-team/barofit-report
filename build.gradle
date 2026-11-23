@@ -20,7 +20,13 @@ tasks.withType(JavaCompile).configureEach {
 
 repositories {
     mavenCentral()
-    mavenLocal()
+    maven {
+        url = uri('https://maven.pkg.github.com/Barofit-team/barofit-common')
+        credentials {
+            username = System.getenv('GITHUB_ACTOR') ?: ''
+            password = System.getenv('GITHUB_TOKEN') ?: ''
+        }
+    }
 }
 
 dependencyManagement {
@@ -61,14 +67,14 @@ dependencies {
     testAnnotationProcessor 'org.projectlombok:lombok'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 
-    // 이 레포 자신의 컴포넌트/통합 테스트 (Testcontainers 기반)
+    // ???덊룷 ?먯떊??而댄룷?뚰듃/?듯빀 ?뚯뒪??(Testcontainers 湲곕컲)
     integrationTestImplementation('com.barofit:barofit-runtime:0.0.1-SNAPSHOT') {
         capabilities {
             requireCapability('com.barofit:runtime-test-fixtures')
         }
     }
-    // ReportSchemaMigrationTest는 스키마를 통째로 지우는 파괴적 테스트라 공유 컨테이너 대신
-    // 독립된 컨테이너를 그대로 쓴다 (barofit-common 쪽에 없는 순수 testcontainers 의존성)
+    // ReportSchemaMigrationTest???ㅽ궎留덈? ?듭㎏濡?吏?곕뒗 ?뚭눼???뚯뒪?몃씪 怨듭쑀 而⑦뀒?대꼫 ???
+    // ?낅┰??而⑦뀒?대꼫瑜?洹몃?濡??대떎 (barofit-common 履쎌뿉 ?녿뒗 ?쒖닔 testcontainers ?섏〈??
     integrationTestImplementation 'org.testcontainers:testcontainers-junit-jupiter'
     integrationTestImplementation 'org.testcontainers:testcontainers-postgresql'
 }
@@ -78,7 +84,7 @@ tasks.named('test') {
 }
 
 tasks.register('integrationTest', Test) {
-    description = '이 레포 자신의 컴포넌트 통합 테스트 (Testcontainers, Docker 필요)'
+    description = '???덊룷 ?먯떊??而댄룷?뚰듃 ?듯빀 ?뚯뒪??(Testcontainers, Docker ?꾩슂)'
     group = 'verification'
     testClassesDirs = sourceSets.integrationTest.output.classesDirs
     classpath = sourceSets.integrationTest.runtimeClasspath
