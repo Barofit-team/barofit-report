@@ -2,9 +2,12 @@ name: BaroFit ECR Build and Publish
 
 on:
   pull_request:
-    branches: [dev]
+    branches:
+      - dev
   push:
-    branches: [dev, main]
+    branches:
+      - dev
+      - main
   workflow_dispatch:
 
 permissions:
@@ -29,46 +32,46 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Build application JAR from GitHub Packages
+      - name: Build application JAR
         env:
           GITHUB_ACTOR: ${{ github.actor }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: ./gradlew bootJar --no-daemon --refresh-dependencies
 
+      - name: Verify application JAR
+        run: test -f build/libs/app.jar
+
       - name: Build Docker image
-        shell: bash
         run: |
           set -euo pipefail
           docker build --platform linux/amd64 \
+            --progress=plain \
             -t barofit-report:ci .
 
-      # ?꾨옒遺?곕뒗 main???ㅼ젣濡?push?먯쓣 ?뚮쭔 ?ㅽ뻾?쒕떎(?먮룞 諛고룷 ?뱀씤 ?꾨즺,
-      # barofit-infra#33). OIDC ?좊ː ?뺤콉(terraform/github-oidc)??main留??덉슜?쒕떎.
       - name: Configure AWS OIDC credentials
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ vars.AWS_ECR_ROLE_ARN }}
           aws-region: ap-northeast-2
 
       - name: Login to Amazon ECR
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
       - name: Push Docker image
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         id: push
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-        shell: bash
         run: |
           set -euo pipefail
 
           EXPECTED="373514675861.dkr.ecr.ap-northeast-2.amazonaws.com"
 
           if [ "$ECR_REGISTRY" != "$EXPECTED" ]; then
-            echo "Unexpected ECR registry."
+            echo "Unexpected ECR registry"
             exit 1
           fi
 
@@ -82,27 +85,28 @@ jobs:
           echo "Published: $IMAGE"
 
       - name: Bump image tag in barofit-infra
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         env:
           GH_TOKEN: ${{ secrets.REPO_DISPATCH_TOKEN }}
           TAG: ${{ steps.push.outputs.tag }}
-        shell: bash
         run: |
           set -euo pipefail
 
           git clone --depth 1 --branch main \
             "https://x-access-token:${GH_TOKEN}@github.com/Barofit-team/barofit-infra.git" infra-repo
+
           cd infra-repo
 
           yq -i '.report.image.tag = strenv(TAG)' infra/values-ecr-prod.yaml
 
           if git diff --quiet; then
-            echo "Tag unchanged, nothing to commit"
+            echo "Tag unchanged"
             exit 0
           fi
 
           git config user.name "barofit-ci"
           git config user.email "ci@barofit.local"
+
           git add infra/values-ecr-prod.yaml
           git commit -m "chore(cd): bump report image tag to ${TAG}"
           git push origin main
