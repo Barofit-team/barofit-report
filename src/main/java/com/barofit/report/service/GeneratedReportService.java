@@ -236,13 +236,7 @@ public class GeneratedReportService {
   }
 
   private static String itemLabel(String id) {
-    return switch (id) {
-      case "pike_shape" -> "파이크 자세";
-      case "head_path" -> "머리 이동 경로";
-      case "press_return" -> "밀어 올리고 돌아오는 자세";
-      case "hip_alignment" -> "골반 정렬";
-      default -> "자세 평가 항목(" + id + ")";
-    };
+    return PostureItemLabels.label(id);
   }
 
   private Generated find(UUID user, UUID session) {
