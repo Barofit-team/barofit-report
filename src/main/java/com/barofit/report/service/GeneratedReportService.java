@@ -49,7 +49,13 @@ public class GeneratedReportService {
       List<Item> postureItems,
       String strengths,
       String improvements,
-      String nextGoal) {}
+      String nextGoal,
+      List<String> feedbackMessages) {
+    /** Reports stored before feedbackMessages existed deserialize with null; expose an empty list. */
+    public Exercise {
+      feedbackMessages = feedbackMessages == null ? List.of() : List.copyOf(feedbackMessages);
+    }
+  }
 
   public record Generated(
       UUID sessionId,
@@ -176,6 +182,10 @@ public class GeneratedReportService {
               : worst == null
                   ? "다음 운동에서도 시작 전 자세 안내를 확인해 보세요."
                   : String.format("다음 운동에서는 %s의 자세 안내를 다시 확인해 보세요.", itemLabel(worst.itemId()));
+      List<String> feedbackMessages =
+          performed == 0
+              ? List.of()
+              : PostureErrorMessages.buildFeedbackMessages(errors, posture);
       exercises.add(
           new Exercise(
               exercise.path("id").asText(),
@@ -189,7 +199,8 @@ public class GeneratedReportService {
               List.copyOf(posture),
               strengths,
               improvements,
-              goal));
+              goal,
+              List.copyOf(feedbackMessages)));
     }
     if (totalPerformed == 0)
       throw new ResponseStatusException(HttpStatus.CONFLICT, "Workout has no performed sets");

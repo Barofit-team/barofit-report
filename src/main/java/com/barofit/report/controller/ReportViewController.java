@@ -120,4 +120,15 @@ public class ReportViewController {
     return service.scoreHistory(
         user(principal), exerciseId, limit, request.getHeader("Authorization"));
   }
+
+  @GetMapping("/recent-scores")
+  @Operation(
+      summary = "최근 세션 점수 추이 및 주간 운동 횟수",
+      description = "이번 주(월~일, KST) 수행 운동 횟수와 최근 생성된 리포트의 루틴 점수를 최신순으로 반환합니다.")
+  public ReportViewService.RecentScoreTrend recentScores(
+      @RequestParam(defaultValue = "5") int limit,
+      Principal principal,
+      HttpServletRequest request) {
+    return service.recentScores(user(principal), limit, request.getHeader("Authorization"));
+  }
 }
