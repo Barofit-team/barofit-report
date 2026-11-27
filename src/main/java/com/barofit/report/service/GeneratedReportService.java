@@ -88,7 +88,8 @@ public class GeneratedReportService {
       Double routineScore,
       String overallFeedback,
       List<Exercise> exercises,
-      String generationMethod) {}
+      String generationMethod,
+      Integer estimatedKcal) {}
 
   public Generated get(UUID user, UUID session, String auth) {
     sources.workout("/api/v1/workout-sessions/" + session, auth);
@@ -239,7 +240,8 @@ public class GeneratedReportService {
             routineScore,
             overall,
             List.copyOf(exercises),
-            "TEMPLATE_V1");
+            "TEMPLATE_V1",
+            CalorieEstimate.estimateKcal(session));
     generated = enrichWithLlm(generated);
     try {
       jdbc.update(
@@ -304,7 +306,8 @@ public class GeneratedReportService {
           template.routineScore(),
           ai.overallFeedback(),
           List.copyOf(enrichedExercises),
-          "LLM_V1");
+          "LLM_V1",
+          template.estimatedKcal());
     } catch (IOException | JacksonException ex) {
       log.warn(
           "Falling back to TEMPLATE_V1 for session {}: {}", template.sessionId(), ex.getMessage());
