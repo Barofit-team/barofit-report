@@ -95,6 +95,8 @@ public class ReportViewService {
 
   public record ScoreHistory(UUID sessionId, double score, Instant completedAt) {}
 
+  public record RecentScoreTrend(int weeklyWorkoutCount, List<ScoreHistory> recentScores) {}
+
   private YearMonth month(int year, int month) {
     try {
       return YearMonth.of(year, month);
@@ -392,6 +394,47 @@ public class ReportViewService {
             .reversed()
             .thenComparing(ScoreHistory::sessionId));
     return history.stream().limit(limit).toList();
+  }
+
+  public RecentScoreTrend recentScores(UUID userId, int limit, String auth) {
+    if (limit < 1 || limit > 30) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid recent score limit");
+    }
+    LocalDate today = LocalDate.now(clock.withZone(SEOUL));
+    LocalDate weekStart = today.with(DayOfWeek.MONDAY);
+    JsonNode weekHistory =
+        sources.workout(
+            "/api/v1/workout-sessions/history?startDate=" + weekStart + "&endDate=" + today, auth);
+    if (weekHistory == null || !weekHistory.isArray()) {
+      throw new ResponseStatusException(
+          HttpStatus.SERVICE_UNAVAILABLE, "Invalid workout history response");
+    }
+    int weeklyWorkoutCount = 0;
+    for (JsonNode entry : weekHistory) {
+      JsonNode session = entry.path("session");
+      if (session.path("endedAt").isTextual() && performedSets(session.path("sets")) > 0) {
+        weeklyWorkoutCount++;
+      }
+    }
+    List<ScoreHistory> scores =
+        jdbc.query(
+            """
+            SELECT session_id,
+                   (report_json->>'routineScore')::double precision AS score,
+                   created_at
+            FROM generated_workout_reports
+            WHERE user_id=? AND report_json->>'routineScore' IS NOT NULL
+            ORDER BY created_at DESC, session_id
+            LIMIT ?
+            """,
+            (rs, row) ->
+                new ScoreHistory(
+                    rs.getObject("session_id", UUID.class),
+                    rs.getDouble("score"),
+                    rs.getTimestamp("created_at").toInstant()),
+            userId,
+            limit);
+    return new RecentScoreTrend(weeklyWorkoutCount, scores);
   }
 
   public Feedback feedback(UUID userId, UUID sessionId) {

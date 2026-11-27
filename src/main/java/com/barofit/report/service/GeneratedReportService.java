@@ -1,7 +1,11 @@
 package com.barofit.report.service;
 
 import com.barofit.report.repository.ReportRepository.ScoreItem;
+import java.io.IOException;
 import java.util.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -16,17 +20,30 @@ import tools.jackson.databind.ObjectMapper;
  */
 @Service
 public class GeneratedReportService {
+  private static final Logger log = LoggerFactory.getLogger(GeneratedReportService.class);
   private final ReportSourceClient sources;
   private final ReportService reports;
   private final JdbcTemplate jdbc;
   private final ObjectMapper json;
+  private final OpenAiReportClient llm;
 
   public GeneratedReportService(
       ReportSourceClient sources, ReportService reports, JdbcTemplate jdbc, ObjectMapper json) {
+    this(sources, reports, jdbc, json, null);
+  }
+
+  @Autowired
+  public GeneratedReportService(
+      ReportSourceClient sources,
+      ReportService reports,
+      JdbcTemplate jdbc,
+      ObjectMapper json,
+      OpenAiReportClient llm) {
     this.sources = sources;
     this.reports = reports;
     this.jdbc = jdbc;
     this.json = json;
+    this.llm = llm;
   }
 
   public record Item(
@@ -49,7 +66,15 @@ public class GeneratedReportService {
       List<Item> postureItems,
       String strengths,
       String improvements,
-      String nextGoal) {}
+      String nextGoal,
+      List<String> feedbackMessages) {
+    /**
+     * Reports stored before feedbackMessages existed deserialize with null; expose an empty list.
+     */
+    public Exercise {
+      feedbackMessages = feedbackMessages == null ? List.of() : List.copyOf(feedbackMessages);
+    }
+  }
 
   public record Generated(
       UUID sessionId,
@@ -176,6 +201,8 @@ public class GeneratedReportService {
               : worst == null
                   ? "다음 운동에서도 시작 전 자세 안내를 확인해 보세요."
                   : String.format("다음 운동에서는 %s의 자세 안내를 다시 확인해 보세요.", itemLabel(worst.itemId()));
+      List<String> feedbackMessages =
+          performed == 0 ? List.of() : PostureErrorMessages.buildFeedbackMessages(errors, posture);
       exercises.add(
           new Exercise(
               exercise.path("id").asText(),
@@ -189,7 +216,8 @@ public class GeneratedReportService {
               List.copyOf(posture),
               strengths,
               improvements,
-              goal));
+              goal,
+              List.copyOf(feedbackMessages)));
     }
     if (totalPerformed == 0)
       throw new ResponseStatusException(HttpStatus.CONFLICT, "Workout has no performed sets");
@@ -212,6 +240,7 @@ public class GeneratedReportService {
             overall,
             List.copyOf(exercises),
             "TEMPLATE_V1");
+    generated = enrichWithLlm(generated);
     try {
       jdbc.update(
           "INSERT INTO generated_workout_reports(session_id,user_id,report_json) VALUES (?,?,?::jsonb) ON CONFLICT (session_id) DO NOTHING",
@@ -227,6 +256,109 @@ public class GeneratedReportService {
     return result;
   }
 
+  private Generated enrichWithLlm(Generated template) {
+    if (llm == null || !llm.configured()) {
+      return template;
+    }
+    try {
+      Map<String, Object> facts = buildLlmFacts(template);
+      OpenAiReportClient.LlmReportResult ai = llm.generate(facts);
+      Map<String, OpenAiReportClient.LlmExerciseFeedback> byId = new HashMap<>();
+      for (var entry : ai.exercises()) {
+        byId.put(entry.routineExerciseId(), entry);
+      }
+      List<Exercise> enrichedExercises = new ArrayList<>(template.exercises().size());
+      for (Exercise ex : template.exercises()) {
+        OpenAiReportClient.LlmExerciseFeedback aiEx = byId.get(ex.routineExerciseId());
+        if (ex.performedSets() == 0 || aiEx == null) {
+          enrichedExercises.add(ex);
+          continue;
+        }
+        List<String> messages =
+            aiEx.feedbackMessages().isEmpty() ? ex.feedbackMessages() : aiEx.feedbackMessages();
+        enrichedExercises.add(
+            new Exercise(
+                ex.routineExerciseId(),
+                ex.exerciseId(),
+                ex.name(),
+                ex.performedSets(),
+                ex.actualReps(),
+                ex.actualDurationSeconds(),
+                ex.postureScore(),
+                ex.errorCounts(),
+                ex.postureItems(),
+                aiEx.strengths() != null ? aiEx.strengths() : ex.strengths(),
+                aiEx.improvements() != null ? aiEx.improvements() : ex.improvements(),
+                aiEx.nextGoal() != null ? aiEx.nextGoal() : ex.nextGoal(),
+                messages));
+      }
+      return new Generated(
+          template.sessionId(),
+          template.routineName(),
+          template.sessionStatus(),
+          template.performedSets(),
+          template.plannedSets(),
+          template.restSeconds(),
+          template.activeDurationSeconds(),
+          template.elapsedSeconds(),
+          template.routineScore(),
+          ai.overallFeedback(),
+          List.copyOf(enrichedExercises),
+          "LLM_V1");
+    } catch (IOException | JacksonException ex) {
+      log.warn(
+          "Falling back to TEMPLATE_V1 for session {}: {}", template.sessionId(), ex.getMessage());
+      return template;
+    } catch (InterruptedException ex) {
+      Thread.currentThread().interrupt();
+      log.warn("LLM report generation interrupted for session {}", template.sessionId());
+      return template;
+    }
+  }
+
+  private static Map<String, Object> buildLlmFacts(Generated template) {
+    Map<String, Object> facts = new LinkedHashMap<>();
+    facts.put("routineName", template.routineName());
+    facts.put("performedSets", template.performedSets());
+    facts.put("plannedSets", template.plannedSets());
+    facts.put("routineScore", template.routineScore());
+    facts.put("activeDurationSeconds", template.activeDurationSeconds());
+    List<Map<String, Object>> exerciseFacts = new ArrayList<>();
+    for (Exercise ex : template.exercises()) {
+      if (ex.performedSets() == 0) continue;
+      Map<String, Object> item = new LinkedHashMap<>();
+      item.put("routineExerciseId", ex.routineExerciseId());
+      item.put("name", ex.name());
+      item.put("performedSets", ex.performedSets());
+      item.put("actualReps", ex.actualReps());
+      item.put("actualDurationSeconds", ex.actualDurationSeconds());
+      item.put("postureScore", ex.postureScore());
+      List<Map<String, Object>> items = new ArrayList<>();
+      for (Item posture : ex.postureItems()) {
+        items.add(
+            Map.of(
+                "label", PostureItemLabels.label(posture.itemId()),
+                "compliant", posture.compliant(),
+                "warning", posture.warning(),
+                "compliancePct", posture.compliancePct() == null ? 0.0 : posture.compliancePct()));
+      }
+      item.put("postureItems", items);
+      List<Map<String, Object>> errors = new ArrayList<>();
+      for (var err : ex.errorCounts().entrySet()) {
+        String meaning = PostureErrorMessages.message(err.getKey());
+        errors.add(
+            Map.of(
+                "code", err.getKey(),
+                "meaning", meaning == null ? err.getKey() : meaning,
+                "count", err.getValue()));
+      }
+      item.put("errors", errors);
+      exerciseFacts.add(item);
+    }
+    facts.put("exercises", exerciseFacts);
+    return facts;
+  }
+
   private static Long elapsed(JsonNode session) {
     if (!session.path("startedAt").isTextual() || !session.path("endedAt").isTextual()) return null;
     return java.time.Duration.between(
@@ -236,13 +368,7 @@ public class GeneratedReportService {
   }
 
   private static String itemLabel(String id) {
-    return switch (id) {
-      case "pike_shape" -> "파이크 자세";
-      case "head_path" -> "머리 이동 경로";
-      case "press_return" -> "밀어 올리고 돌아오는 자세";
-      case "hip_alignment" -> "골반 정렬";
-      default -> "자세 평가 항목(" + id + ")";
-    };
+    return PostureItemLabels.label(id);
   }
 
   private Generated find(UUID user, UUID session) {
