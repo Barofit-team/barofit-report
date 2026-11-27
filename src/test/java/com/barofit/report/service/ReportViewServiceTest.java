@@ -127,4 +127,38 @@ class ReportViewServiceTest {
     assertThat(complete.routineScore()).isEqualTo(70.0);
     assertThat(complete.exercises().get(0).postureScore()).isEqualTo(80.0);
   }
+
+  @Test
+  void recentScoresCountsCurrentSeoulWeekAndReturnsTrend() throws Exception {
+    UUID user = UUID.randomUUID(), s1 = UUID.randomUUID(), s2 = UUID.randomUUID();
+    var weekSessions =
+        json.readTree(
+            """
+            [
+              {"session":{"endedAt":"2026-10-12T10:00:00Z","sets":[{"actualReps":10}]}},
+              {"session":{"endedAt":"2026-10-15T01:00:00Z","sets":[{"actualDurationSeconds":30}]}},
+              {"session":{"endedAt":"2026-10-15T02:00:00Z","sets":[]}}
+            ]
+            """);
+    when(sources.workout(
+            eq("/api/v1/workout-sessions/history?startDate=2026-10-12&endDate=2026-10-15"),
+            eq("Bearer test")))
+        .thenReturn(weekSessions);
+    when(jdbc.query(
+            anyString(),
+            org.mockito.ArgumentMatchers
+                .<org.springframework.jdbc.core.RowMapper<ReportViewService.ScoreHistory>>any(),
+            eq(user),
+            eq(5)))
+        .thenReturn(
+            List.of(
+                new ReportViewService.ScoreHistory(s2, 82.0, Instant.parse("2026-10-15T01:00:00Z")),
+                new ReportViewService.ScoreHistory(
+                    s1, 75.0, Instant.parse("2026-10-12T10:00:00Z"))));
+
+    var trend = service.recentScores(user, 5, "Bearer test");
+    assertThat(trend.weeklyWorkoutCount()).isEqualTo(2);
+    assertThat(trend.recentScores()).hasSize(2);
+    assertThat(trend.recentScores().getFirst().score()).isEqualTo(82.0);
+  }
 }
