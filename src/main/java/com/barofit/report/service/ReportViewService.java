@@ -58,7 +58,9 @@ public class ReportViewService {
       String status,
       int completedSets,
       int plannedSets,
-      int durationSeconds) {}
+      int durationSeconds,
+      int exerciseCount,
+      Integer estimatedKcal) {}
 
   public record RecordPage(List<RecordCard> content, int page, int size, boolean hasNext) {}
 
@@ -216,7 +218,9 @@ public class ReportViewService {
               item.path("completed").asBoolean() ? "COMPLETED" : "PARTIAL",
               performed,
               plannedSets(snapshot),
-              s.path("activeDurationSeconds").asInt()));
+              s.path("activeDurationSeconds").asInt(),
+              snapshot.path("exercises").size(),
+              CalorieEstimate.estimateKcal(s)));
     }
     LocalDate today = LocalDate.now(clock.withZone(SEOUL));
     for (JsonNode plan : plans(period, auth)) {
@@ -231,7 +235,9 @@ public class ReportViewService {
                 "MISSED",
                 0,
                 0,
-                0));
+                0,
+                0,
+                null));
     }
     cards.sort(Comparator.comparing(RecordCard::date).reversed());
     return cards;
